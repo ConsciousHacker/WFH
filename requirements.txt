@@ -1,1 +1,4 @@
 frida-tools
+pefile==2021.5.24
+psutil==5.8.0
+pydemangler==0.1

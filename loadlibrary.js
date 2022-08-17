@@ -24,6 +24,8 @@ var aModules = new Array();
 //-------------------------//
 
 // Native function pointers
+var pLoadLibraryA = Module.findExportByName('Kernel32.dll', 'LoadLibraryA')
+var pLoadLibraryExA = Module.findExportByName('Kernel32.dll', 'LoadLibraryExA')
 var pLoadLibraryW = Module.findExportByName('Kernel32.dll', 'LoadLibraryW')
 var pLoadLibraryExW = Module.findExportByName('Kernel32.dll', 'LoadLibraryExW')
 var pGetProcAddress = Module.findExportByName('Kernel32.dll', 'GetProcAddress')
@@ -70,6 +72,59 @@ function ParseDllFlags(FlagVal) {
 
     return BitMask.join("|");
 }
+Interceptor.attach(pLoadLibraryA, {
+    onEnter: function (args) {
+        // Make sure var is reset
+        this.sideLoad = false;
+        var sPath = args[0].readAnsiString();
+        // send("LoadLibraryW,LPCWSTR: " + args[0].readUtf16String())
+        if (!sPath.toLowerCase().includes("\\windows") && sPath.toLowerCase().includes("dll") && !sPath.toLowerCase().includes("kernel") && !sPath.toLowerCase().includes("ms-win") && !sPath.toLowerCase().includes("advapi") && !sPath.toLowerCase().includes("ntdll") && !sPath.toLowerCase().includes("user32") && !sPath.toLowerCase().includes("gdiplus") && !sPath.toLowerCase().includes("imm32") && !sPath.toLowerCase().includes("gdi32") && !sPath.toLowerCase().includes("ole32") && !sPath.toLowerCase().includes("shell32") && !sPath.toLowerCase().includes("wiatrace") && !sPath.toLowerCase().includes("mscoree") && !sPath.toLowerCase().includes("comctl32") && !sPath.toLowerCase().includes("version") && !sPath.toLowerCase().includes("oleaut32") && !sPath.toLowerCase().includes("wintrust") && !sPath.toLowerCase().includes("crypt32") && !sPath.toLowerCase().includes("sxs") && !sPath.toLowerCase().includes("d3d10warp")) {
+            send("LoadLibraryA,LPCSTR: " + args[0].readAnsiString())
+            
+            // Store the path to the dll
+            this.sPath = args[0].readAnsiString();
+            // Set sideload to true to store it in the array of modules
+            this.sideLoad = true;
+        }
+    },
+    onLeave: function (retval) {
+        if (this.sideLoad){
+            // if sideload was true, store it in the array of modules
+            var sVal = retval.toString() + " - " + this.sPath;
+            if (aModules.indexOf(sVal) == -1) {
+                aModules.push(sVal);
+            }
+        }
+    }
+});
+
+Interceptor.attach(pLoadLibraryExA, {
+    onEnter: function (args) {
+        // Make sure var is reset
+        this.sideLoad = false;
+        var sPath = args[0].readAnsiString();
+        // send("LoadLibraryW,LPCWSTR: " + args[0].readUtf16String())
+        if (!sPath.toLowerCase().includes("\\windows") && sPath.toLowerCase().includes("dll") && !sPath.toLowerCase().includes("kernel") && !sPath.toLowerCase().includes("ms-win") && !sPath.toLowerCase().includes("advapi") && !sPath.toLowerCase().includes("ntdll") && !sPath.toLowerCase().includes("user32") && !sPath.toLowerCase().includes("gdiplus") && !sPath.toLowerCase().includes("imm32") && !sPath.toLowerCase().includes("gdi32") && !sPath.toLowerCase().includes("ole32") && !sPath.toLowerCase().includes("shell32") && !sPath.toLowerCase().includes("wiatrace") && !sPath.toLowerCase().includes("mscoree") && !sPath.toLowerCase().includes("comctl32") && !sPath.toLowerCase().includes("version") && !sPath.toLowerCase().includes("oleaut32") && !sPath.toLowerCase().includes("wintrust") && !sPath.toLowerCase().includes("crypt32") && !sPath.toLowerCase().includes("sxs") && !sPath.toLowerCase().includes("d3d10warp")) {
+            var FlagVals = ParseDllFlags(args[2])
+            if (!FlagVals.includes("SYSTEM32") && !FlagVals.includes("DATAFILE")){
+                send("LoadLibraryExA,LPCSTR: " + args[0].readAnsiString() + ", dwFlags : " + FlagVals)   
+                // Store the path to the dll
+                this.sPath = args[0].readAnsiString();
+                // Set sideload to true to store it in the array of modules
+                this.sideLoad = true;
+            }
+        }
+    },
+    onLeave: function (retval) {
+        if (this.sideLoad){
+            // if sideload was true, store it in the array of modules
+            var sVal = retval.toString() + " - " + this.sPath;
+            if (aModules.indexOf(sVal) == -1) {
+                aModules.push(sVal);
+            }
+        }
+    }
+});
 
 Interceptor.attach(pLoadLibraryW, {
     onEnter: function (args) {

@@ -2,11 +2,28 @@
 Windows Feature Hunter (WFH) is a proof of concept python script that uses [Frida](https://frida.re/), a dynamic instrumentation toolkit, to assist in potentially identifying common “vulnerabilities” or “features” within Windows executables. WFH currently has the capability to automatically identify potential Dynamic Linked Library (DLL) sideloading and Component Object Model (COM) hijacking opportunities at scale. 
 
 DLL sideloading utilizes the Windows side-by-side (WinSXS) assembly to load a malicious DLL from the side-by-side (SXS) listing. COM hijacking allows an adversary to insert malicious code that can be executed in place of legitimate software through hijacking the COM references and relationships. WFH will print the potential vulnerabilities and write a CSV file containing the potential vulnerabilities in the target Windows executables.
-## Install
+## Table of Contents
+- [Windows Feature Hunter (WFH)](#windows-feature-hunter--wfh-)
+  * [WFH Install](#wfh-install)
+  * [WFH Help](#wfh-help)
+  * [WFH Usage](#wfh-usage)
+    + [WFH DLL Sideloading Identification](#wfh-dll-sideloading-identification)
+    + [WFH COM Hijacking Identification](#wfh-com-hijacking-identification)
+  * [WFH Use Cases](#wfh-use-cases)
+    + [Native Windows Signed Binaries](#native-windows-signed-binaries)
+- [Windows Feature Hunter Dridex (WFH Dridex)](#windows-feature-hunter-dridex--wfh-dridex-)
+  * [WFH Dridex Install](#wfh-dridex-install)
+  * [WFH Dridex Dependencies](#wfh-dridex-dependencies)
+  * [WFH Dridex Usage](#wfh-dridex-usage)
+    + [WFH Dridex DLL Sideloading Identification](#wfh-dridex-dll-sideloading-identification)
+  * [WFH Dridex DLL Sideloads from System32](#wfh-dridex-dll-sideloads-from-system32)
+    + [WFH vs WFH Dridex Results](#wfh-vs-wfh-dridex-results)
+- [HijackLibs Contribution](#hijacklibs-contribution)
+## WFH Install
 ```
 pip install -r requirements.txt
 ```
-## Help
+## WFH Help
 ```
 PS C:\Tools\WFH > python .\wfh.py -h
 usage: wfh.py [-h] -t T [T ...] -m {dll,com} [-v] [-timeout TIMEOUT]
@@ -37,9 +54,9 @@ EXAMPLE USAGE
     COM Hijacking Identification (Wildcard):        python wfh.py -t * -m com -v
     COM Hijacking Identification (List):            python wfh.py -t "C:\Program Files\Internet Explorer\iexplore.exe" "C:\Windows\System32\notepad.exe" -m com -v
 ```
-## Usage
-### DLL Sideloading Identification
-First you need to copy the binaries you want to analyze to the same directory as wfh
+## WFH Usage
+### WFH DLL Sideloading Identification
+First you need to copy the binaries you want to analyze to the same directory as WFH
 ```
 PS C:\Tools\WFH > copy C:\Windows\System32\mspaint.exe .
 PS C:\Tools\WFH > copy C:\Windows\System32\charmap.exe .
@@ -128,7 +145,7 @@ Running Frida against mspaint.exe
 ==================================================
 [*] Writing dll results to dll_results.csv
 ```
-### COM Hijacking Identification
+### WFH COM Hijacking Identification
 ```
 PS C:\Tools\WFH > python .\wfh.py -t "C:\Program Files\Internet Explorer\iexplore.exe" -m com
 ==================================================
@@ -143,7 +160,7 @@ Running Frida against C:\Program Files\Internet Explorer\iexplore.exe
 ==================================================
 [*] Writing dll results to comhijack_results.csv
 ```
-## Use Cases
+## WFH Use Cases
 ### Native Windows Signed Binaries
 Copy all native Windows signed binaries to wfh directory
 ```
@@ -157,3 +174,63 @@ Hunt for COM hijacking opportunities
 ```
 python wfh.py -t * -m com
 ```
+# Windows Feature Hunter Dridex (WFH Dridex)
+Windows Feature Hunter Dridex (WFH Dridex) is a proof of concept python script inspired by the [Dridex loader](https://blog.lexfo.fr/dridex-malware.html). WFH Dridex analyzes the Import Address Table (IAT) of the target executables, compiles a DLL for each entry in the executables' IAT, and validates if a DLL sideload was identified.
+
+The original WFH release identified approximately 96 potential DLL sideloading opportunties. **WFH Dridex identified approximately 966 validated DLL sideloading opportunities.**
+## WFH Dridex Install
+```
+pip install -r requirements.txt
+```
+## WFH Dridex Dependencies
+[MingW G++ (64 bit)](https://www.mingw-w64.org/)
+
+`g++.exe` must be added to the PATH environment variable after installation for WFH Dridex to function properly.
+## WFH Dridex Usage
+### WFH Dridex DLL Sideloading Identification
+First you need to copy the binaries you want to analyze to the same directory as WFH Dridex
+```
+❯ cp C:\Windows\System32\mspaint.exe .
+❯ cp C:\Windows\System32\charmap.exe .
+```
+
+```
+❯ python .\wfh_dridex.py
+[*] Creating a payload for charmap.exe with GetUName.dll
+    |_ Compiling with: g++.exe -s -Os -static -shared -fpermissive -oGetUName.dll dllmain.c
+    |_ Testing charmap.exe with GetUName.dll for DLL sideloading opportunity
+    |_ PID: 8936
+[>] Listing working DLL sideloads
+    |_ charmap.exe GetUName.dll
+[*] Creating a payload for mspaint.exe with MFC42u.dll
+    |_ Compiling with: g++.exe -s -Os -static -shared -fpermissive testaroo.def -oMFC42u.dll dllmain.c
+    |_ Testing mspaint.exe with MFC42u.dll for DLL sideloading opportunity
+    |_ PID: 9472
+[*] Creating a payload for mspaint.exe with PROPSYS.dll
+    |_ Compiling with: g++.exe -s -Os -static -shared -fpermissive -oPROPSYS.dll dllmain.c
+    |_ Testing mspaint.exe with PROPSYS.dll for DLL sideloading opportunity
+    |_ PID: 11308
+[*] Creating a payload for mspaint.exe with WINMM.dll
+    |_ Compiling with: g++.exe -s -Os -static -shared -fpermissive -oWINMM.dll dllmain.c
+    |_ Testing mspaint.exe with WINMM.dll for DLL sideloading opportunity
+    |_ PID: 180
+[>] Listing working DLL sideloads
+    |_ mspaint.exe MFC42u.dll
+    |_ mspaint.exe PROPSYS.dll
+    |_ mspaint.exe WINMM.dll
+```
+Now you can run WFH Dridex against the binaries to identify DLL sideloading opportunities
+```
+❯ gc .\results.csv
+Executable,DllName
+charmap.exe,GetUName.dll
+mspaint.exe,MFC42u.dll
+mspaint.exe,PROPSYS.dll
+mspaint.exe,WINMM.dll
+```
+## WFH Dridex DLL Sideloads from System32
+A sample CSV output from WFH Dridex ran against `C:\Windows\System32` can be viewed [here](examples/WFH_Dridex_System32_08172022.csv).
+### WFH vs WFH Dridex Results
+The original WFH release identified approximately 96 potential DLL sideloading opportunties. **WFH Dridex identified approximately 966 validated DLL sideloading opportunities.**
+# HijackLibs Contribution
+As part of the WFH Dridex release, a [pull request](https://github.com/wietze/HijackLibs/pull/6) was submitted to [Wietze's](https://twitter.com/Wietze) [HijackLibs](https://hijacklibs.net/) project which included 507 new entries to the project.
